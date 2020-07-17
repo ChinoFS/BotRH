@@ -1,161 +1,135 @@
-'use strict';
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
-// Imports dependencies and set up http server
-const
-    request = require('request'),
-    express = require('express'),
-    body_parser = require('body-parser'),
-    app = express().use(body_parser.json()); // creates express http server
+const express = require('express')
+const bodyParser = require('body-parser')
+const request = require('request')
 
-// Sets server port and logs message on success
-app.listen(process.env.PORT || 3000, () => console.log('webhook is listening'));
+const APP_TOKEN = 'EAAJVepgEpfQBAMl4IIOXb7aabBTJPkX158O9vVdtES4ybhHTG4ZAYHBLVswlnRsZCkS7uToQ2jGJWfH660baN4ZBy20OV4oU2lsF5ljCcym01uNw6v4qsH18iPpf3wVMKHSZBM0gR41J4wKLUrdAk5wBu3jeZBzZAqpKZCjZAECyMFg6iaOUgOqxXAf93zHYEpwZD'
 
-// Accepts POST requests at /webhook endpoint
-app.post('/webhook', (req, res) => {
+var app = express()
 
-    // Parse the request body from the POST
-    let body = req.body;
+app.use(bodyParser.json())
 
-    // Check the webhook event is from a Page subscription
-    if (body.object === 'page') {
+var PORT = process.env.PORT || 3000;
 
-        body.entry.forEach(function(entry) {
+app.listen(PORT,function(){
+    console.log('Server listen localhost:3000')
+})
 
-            // Gets the body of the webhook event
-            let webhook_event = entry.messaging[0];
-            console.log(webhook_event);
+app.get('/',function(req, res){
+    res.send('Funcionando webhook')
+})
 
-            // Get the sender PSID
-            let sender_psid = webhook_event.sender.id;
-            console.log('Sender ID: ' + sender_psid);
-
-            // Check if the event is a message or postback and
-            // pass the event to the appropriate handler function
-            if (webhook_event.message) {
-                handleMessage(sender_psid, webhook_event.message);
-            } else if (webhook_event.postback) {
-
-                handlePostback(sender_psid, webhook_event.postback);
-            }
-
-        });
-        // Return a '200 OK' response to all events
-        res.status(200).send('EVENT_RECEIVED');
-
-    } else {
-        // Return a '404 Not Found' if event is not from a page subscription
-        res.sendStatus(404);
+app.get('/webhook',function(req, res){
+    if(req.query['hub.verify_token'] === 'Bot_RH_proyecto'){
+        res.send(req.query['hub.challenge'])
+    }else{
+        res.send('Esta no es tu pagina')
     }
+})
 
-});
-
-// Accepts GET requests at the /webhook endpoint
-app.get('/webhook', (req, res) => {
-
-    /** UPDATE YOUR VERIFY TOKEN **/
-    const VERIFY_TOKEN = "Bot_RH_proyecto";
-
-    // Parse params from the webhook verification request
-    let mode = req.query['hub.mode'];
-    let token = req.query['hub.verify_token'];
-    let challenge = req.query['hub.challenge'];
-
-    // Check if a token and mode were sent
-    if (mode && token) {
-
-        // Check the mode and token sent are correct
-        if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-
-            // Respond with 200 OK and challenge token from the request
-            console.log('WEBHOOK_VERIFIED');
-            res.status(200).send(challenge);
-
-        } else {
-            // Responds with '403 Forbidden' if verify tokens do not match
-            res.sendStatus(403);
-        }
+app.post('/webhook',function(req, res){
+    var data = req.body
+    if(data.object == 'page'){
+        data.entry.forEach(function(pageEntry){
+            pageEntry.messaging.forEach(function(messagingEvent){
+                if(messagingEvent.message){
+                    getMessage(messagingEvent)
+                }
+            })
+        })
     }
-});
+    res.sendStatus(200)
+})
 
-function handleMessage(sender_psid, received_message) {
-    let response;
+function getMessage(event){
+    var senderID = event.sender.id
+    var messageText = event.message.text
 
-    // Checks if the message contains text
-    if (received_message.text) {
-        // Create the payload for a basic text message, which
-        // will be added to the body of our request to the Send API
-        response = {
-            "text": `You sent the message: "${received_message.text}". Now send me an attachment!`
-        }
-    } else if (received_message.attachments) {
-        // Get the URL of the message attachment
-        let attachment_url = received_message.attachments[0].payload.url;
-        response = {
-            "attachment": {
-                "type": "template",
-                "payload": {
-                    "template_type": "generic",
-                    "elements": [{
-                        "title": "Is this the right picture?",
-                        "subtitle": "Tap a button to answer.",
-                        "image_url": attachment_url,
-                        "buttons": [
-                            {
-                                "type": "postback",
-                                "title": "Yes!",
-                                "payload": "yes",
-                            },
-                            {
-                                "type": "postback",
-                                "title": "No!",
-                                "payload": "no",
-                            }
-                        ],
-                    }]
+    evaluarMensaje(senderID, messageText)
+}
+
+function evaluarMensaje(senderID, messageText){
+    var mensaje = '';
+
+    if(isContain(messageText,'ayuda')){
+        mensaje = 'Por el momento no te puedo ayudar :('
+    }else if(isContain(messageText,'perfil')){
+        enviarMensajeTemplate(senderID)
+    }else{
+        mensaje = 'solo se repetir las cosas T_T '+ messageText
+    }
+    enviarMensajeTexto(senderID, mensaje)
+}
+
+function enviarMensajeTemplate(senderID){
+    var messageData = {
+        recipient: {
+            id : senderID
+        },
+        message: {
+            attachment :{
+                type: "template",
+                payload: {
+                    template_type: 'generic',
+                    elements: [elementTemplate(),elementTemplate(),elementTemplate(),elementTemplate()]
                 }
             }
         }
     }
 
-    // Send the response message
-    callSendAPI(sender_psid, response);
+    callSendAPI(messageData)
 }
 
-function handlePostback(sender_psid, received_postback) {
-    console.log('ok')
-    let response;
-    // Get the payload for the postback
-    let payload = received_postback.payload;
-
-    // Set the response based on the postback payload
-    if (payload === 'yes') {
-        response = { "text": "Thanks!" }
-    } else if (payload === 'no') {
-        response = { "text": "Oops, try sending another image." }
+function elementTemplate(){
+    return {
+        title: "Joseph Esteban Carrasco",
+        subtitle: "Programador freelance & Youtuber",
+        item_url: "http://informaticomanchay.com",
+        image_url: "https://s-media-cache-ak0.pinimg.com/564x/ef/e8/ee/efe8ee7e20537c7af84eaaf88ccc7302.jpg",
+        buttons: [
+            buttonTemplate('Contactame','http://informaticomanchay.com/contacto'),
+            buttonTemplate('Portafolio','http://informaticomanchay.com/')
+        ]
     }
-    // Send the message to acknowledge the postback
-    callSendAPI(sender_psid, response);
 }
 
-function callSendAPI(sender_psid, response) {
-    // Construct the message body
-    let request_body = {
-        "recipient": {
-            "id": sender_psid
+function buttonTemplate(title,url){
+    return {
+        type: 'web_url',
+        url: url,
+        title: title
+    }
+}
+
+//enviar texto plano
+function enviarMensajeTexto(senderID, mensaje){
+    var messageData = {
+        recipient : {
+            id: senderID
         },
-        "message": response
+        message: {
+            text: mensaje
+        }
     }
 
+    callSendAPI(messageData)
+}
+
+function callSendAPI(messageData){
+    //api de facebook
     request({
-        "uri": "https://graph.facebook.com/v2.6/me/messages",
-        "qs": { "access_token": PAGE_ACCESS_TOKEN },
-        "method": "POST",
-        "json": request_body
-    }, (err, res, body) => {
-        if (!err) {
-            console.log('message sent!')
-        } else {
-            console.error("Unable to send message:" + err);
-        }
-    });
+        uri: 'https://graph.facebook.com/v2.6/me/messages',
+        qs: {access_token: APP_TOKEN},
+        method: 'POST',
+        json: messageData
+    },function(error, response, data){
+        if(error)
+            console.log('No es posible enviar el mensaje')
+        else
+            console.log('Mensaje enviado')
+    })
+}
+
+function isContain(texto, word){
+    if(typeof texto=='undefined' || texto.lenght<=0) return false
+    return texto.indexOf(word) > -1
 }
