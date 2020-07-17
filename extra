@@ -1,0 +1,16 @@
+agegar boton empezar
+
+curl -X POST -H "Content-Type: application/json" -d '{
+"get_started":{
+    "payload":"GET_STARTED_PAYLOAD"
+}
+}' "https://graph.facebook.com/v2.6/me/messenger_profile?access_token=EAAJVepgEpfQBAMl4IIOXb7aabBTJPkX158O9vVdtES4ybhHTG4ZAYHBLVswlnRsZCkS7uToQ2jGJWfH660baN4ZBy20OV4oU2lsF5ljCcym01uNw6v4qsH18iPpf3wVMKHSZBM0gR41J4wKLUrdAk5wBu3jeZBzZAqpKZCjZAECyMFg6iaOUgOqxXAf93zHYEpwZD"
+
+eliminar boton empezar
+
+curl -X DELETE -H "Content-Type: application/json" -d '{
+"fields":[
+    "get_started"
+]
+}' "https://graph.facebook.com/v2.6/me/messenger_profile?access_token=PAGE_ACCESS_TOKEN"
+
