@@ -14,7 +14,7 @@ app.get('/', function (req, res) {
 
 // Conecto a mi Facebook Webhook
 app.get('/webhook', function (req, res) {
-    if (req.query['hub.verify_token'] === 'testbot_verify_token') {
+    if (req.query['hub.verify_token'] === 'Bot_RH_proyecto') {
         res.send(req.query['hub.challenge']);
     } else {
         res.send('Token de seguridad inválido');
